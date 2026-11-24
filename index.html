@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#0b1424">
+<title>Secret Santa</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,800;1,9..144,500&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --sky1:#0b1424; --sky2:#13284a; --sky3:#1d3b66;
+  --snow:#eef4fb; --ink:#f7f3ea; --muted:rgba(247,243,234,.68);
+  --red:#d83a31; --red-d:#9d221c; --gold:#e3b04f; --gold-l:#ffe4a3; --gold-d:#b07e22;
+  --glass:rgba(255,255,255,.08); --glass-b:rgba(255,255,255,.18);
+  --g:clamp(170px,52vw,230px);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{min-height:100%;background:var(--sky1)}
+body{
+  font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);
+  min-height:100vh;min-height:100dvh;overflow-x:hidden;
+  background:linear-gradient(180deg,var(--sky1) 0%,var(--sky2) 55%,var(--sky3) 100%) fixed;
+}
+button{font:inherit;color:inherit;touch-action:manipulation}
+
+/* ---------- Décor ---------- */
+.scene{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.aurora{position:absolute;inset:-20% -30% auto -30%;height:70%;filter:blur(50px);opacity:.55}
+.aurora i{position:absolute;border-radius:50%;mix-blend-mode:screen}
+.aurora i:nth-child(1){width:60%;height:45%;left:5%;top:20%;background:radial-gradient(closest-side,rgba(52,211,153,.55),transparent);animation:drift1 16s ease-in-out infinite alternate}
+.aurora i:nth-child(2){width:55%;height:40%;left:40%;top:10%;background:radial-gradient(closest-side,rgba(56,189,248,.45),transparent);animation:drift2 19s ease-in-out infinite alternate}
+.aurora i:nth-child(3){width:45%;height:35%;left:25%;top:35%;background:radial-gradient(closest-side,rgba(167,139,250,.35),transparent);animation:drift1 23s ease-in-out infinite alternate-reverse}
+@keyframes drift1{to{transform:translate(18%,8%) scale(1.15)}}
+@keyframes drift2{to{transform:translate(-20%,12%) scale(.9)}}
+.moon{position:absolute;top:7%;right:9%;width:clamp(44px,10vw,74px);aspect-ratio:1;border-radius:50%;
+  background:radial-gradient(circle at 35% 35%,#fffaf0,#f1e4c4 60%,#d9c79e);
+  box-shadow:0 0 40px 10px rgba(255,240,200,.25),0 0 120px 40px rgba(255,240,200,.1)}
+.moon::after{content:"";position:absolute;width:18%;height:18%;border-radius:50%;left:55%;top:50%;background:rgba(190,170,130,.35);box-shadow:-22px -12px 0 -2px rgba(190,170,130,.25)}
+canvas#fx{position:fixed;inset:0;width:100%;height:100%;z-index:1;pointer-events:none}
+.hills{position:fixed;left:0;right:0;bottom:0;height:min(30vh,260px);z-index:0;pointer-events:none}
+.hills svg{position:absolute;bottom:0;left:50%;transform:translateX(-50%);height:100%;width:auto;min-width:100%}
+.win{animation:flicker 4s ease-in-out infinite}
+.win:nth-of-type(2n){animation-delay:-1.3s}.win:nth-of-type(3n){animation-delay:-2.6s}
+@keyframes flicker{0%,100%{opacity:1}50%{opacity:.75}}
+
+/* ---------- Mise en page ---------- */
+.app{position:relative;z-index:2;overflow:hidden;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:calc(28px + env(safe-area-inset-top)) 16px calc(min(22vh,190px) + env(safe-area-inset-bottom))}
+.stage{display:none;width:100%;max-width:440px;text-align:center}
+.stage.on{display:block}
+.stage.enter{animation:enter .7s cubic-bezier(.2,.9,.3,1) both}
+@keyframes enter{from{opacity:0;transform:translateY(24px) scale(.97)}to{opacity:1;transform:none}}
+.stage.leave{animation:leave .45s ease forwards}
+@keyframes leave{to{opacity:0;transform:translateY(-16px) scale(.97)}}
+
+.eyebrow{display:inline-flex;align-items:center;gap:10px;font-size:12px;letter-spacing:.24em;text-transform:uppercase;color:var(--gold-l);font-weight:600}
+.eyebrow::before,.eyebrow::after{content:"";width:22px;height:1px;background:linear-gradient(90deg,transparent,var(--gold))}
+.eyebrow::after{transform:scaleX(-1)}
+.title{font-family:Fraunces,Georgia,serif;font-weight:800;font-size:clamp(38px,11vw,56px);line-height:1.02;margin:14px 0 14px;letter-spacing:-.01em;
+  background:linear-gradient(100deg,#fff6dc 0%,var(--gold) 30%,#fff3c9 50%,var(--gold) 70%,#fff6dc 100%);background-size:250% 100%;
+  -webkit-background-clip:text;background-clip:text;color:transparent;animation:shimmer 6s linear infinite;
+  filter:drop-shadow(0 4px 24px rgba(227,176,79,.25))}
+@keyframes shimmer{to{background-position:-250% 0}}
+.lead{color:var(--muted);font-size:16px;line-height:1.55;max-width:340px;margin:0 auto;white-space:pre-line}
+
+.glass{margin-top:26px;background:var(--glass);border:1px solid var(--glass-b);border-radius:26px;padding:22px 18px 20px;
+  -webkit-backdrop-filter:blur(16px) saturate(140%);backdrop-filter:blur(16px) saturate(140%);
+  box-shadow:0 20px 60px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.12)}
+.glass label{display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:12px}
+
+/* Cases du code */
+.otp{position:relative;display:grid;grid-template-columns:repeat(4,1fr) 12px repeat(4,1fr);gap:6px;align-items:center}
+.otp .cell{height:56px;border-radius:12px;background:rgba(255,255,255,.07);border:1.5px solid rgba(255,255,255,.16);
+  display:grid;place-items:center;font:600 22px "JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;color:#fff;transition:border-color .2s,background .2s,transform .2s}
+.otp .cell.filled{background:rgba(255,255,255,.13);border-color:rgba(255,228,163,.5);animation:pop .25s ease}
+.otp .cell.active{border-color:var(--gold);box-shadow:0 0 0 3px rgba(227,176,79,.25)}
+.otp .cell.active::after{content:"";width:2px;height:24px;background:var(--gold-l);animation:blink 1s steps(1) infinite}
+.otp .cell.filled.active::after{display:none}
+@keyframes blink{50%{opacity:0}}
+@keyframes pop{50%{transform:scale(1.1)}}
+.otp .dash{height:2px;background:rgba(255,255,255,.3);border-radius:2px}
+.otp input{position:absolute;inset:0;width:100%;height:100%;opacity:0;font-size:16px;border:0;background:transparent;color:transparent;caret-color:transparent}
+.otp.err .cell{border-color:#ff7a70;background:rgba(216,58,49,.18)}
+.shake{animation:shake .45s}
+@keyframes shake{20%,60%{transform:translateX(-9px)}40%,80%{transform:translateX(9px)}}
+
+.btn{position:relative;overflow:hidden;margin-top:16px;width:100%;border:0;border-radius:16px;padding:17px;font-weight:600;font-size:17px;cursor:pointer;
+  background:linear-gradient(180deg,#e5463c,var(--red-d));color:#fff;box-shadow:0 10px 30px rgba(216,58,49,.35),inset 0 1px 0 rgba(255,255,255,.25)}
+.btn::after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 35%,rgba(255,255,255,.28) 50%,transparent 65%);transform:translateX(-100%);animation:sweep 3.5s ease-in-out infinite}
+@keyframes sweep{60%,100%{transform:translateX(100%)}}
+.btn:active{transform:scale(.985)}
+.btn[disabled]{opacity:.75}
+.spin{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:rot .7s linear infinite;vertical-align:-3px;margin-right:8px}
+@keyframes rot{to{transform:rotate(360deg)}}
+.msg{min-height:20px;margin-top:12px;font-size:14px;color:#ffb3ad}
+.countdown{display:inline-flex;align-items:center;gap:8px;margin-top:18px;font-size:13px;color:var(--muted);background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.1);border-radius:999px;padding:7px 14px}
+.countdown b{color:var(--gold-l);font-weight:600}
+
+/* ---------- Cadeau ---------- */
+.gift-title{font-family:Fraunces,Georgia,serif;font-style:italic;font-weight:500;font-size:clamp(26px,7.5vw,34px);margin-top:10px}
+.gift{position:relative;display:block;width:var(--g);height:calc(var(--g)*1.1);margin:34px auto 22px;border:0;background:none;cursor:pointer}
+.rays{position:absolute;left:50%;top:52%;width:calc(var(--g)*2.8);height:calc(var(--g)*2.8);transform:translate(-50%,-50%);border-radius:50%;
+  background:repeating-conic-gradient(from 0deg,rgba(255,220,140,.5) 0deg 6deg,transparent 6deg 22deg);
+  -webkit-mask:radial-gradient(closest-side,#000 15%,transparent 72%);mask:radial-gradient(closest-side,#000 15%,transparent 72%);
+  opacity:.18;animation:spinr 30s linear infinite;transition:opacity .6s,width .8s,height .8s}
+@keyframes spinr{to{transform:translate(-50%,-50%) rotate(360deg)}}
+.halo{position:absolute;left:50%;top:58%;width:110%;height:80%;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(closest-side,rgba(255,200,110,.35),transparent);filter:blur(10px)}
+.float{position:absolute;inset:0;animation:float 3.2s ease-in-out infinite}
+@keyframes float{50%{transform:translateY(-10px)}}
+.inner{position:absolute;inset:0;transform-origin:50% 90%}
+.box{position:absolute;left:9%;right:9%;bottom:8%;height:52%;border-radius:10px;overflow:hidden;
+  background:linear-gradient(90deg,rgba(0,0,0,.18),transparent 30%,transparent 70%,rgba(0,0,0,.22)),linear-gradient(180deg,#e2463c,#a5241e)}
+.box::before{content:"";position:absolute;left:50%;top:0;bottom:0;width:17%;transform:translateX(-50%);background:linear-gradient(90deg,var(--gold-d),var(--gold-l) 45%,var(--gold) 60%,var(--gold-d))}
+.box::after{content:"";position:absolute;left:0;right:0;top:0;height:12%;background:rgba(0,0,0,.18)}
+.shine{position:absolute;inset:0;background:linear-gradient(115deg,transparent 40%,rgba(255,255,255,.35) 50%,transparent 60%);transform:translateX(-120%);animation:shine 3.8s ease-in-out infinite 1s}
+@keyframes shine{40%,100%{transform:translateX(120%)}}
+.lid{position:absolute;left:4%;right:4%;top:30%;height:17%;border-radius:10px;z-index:2;
+  background:linear-gradient(90deg,rgba(0,0,0,.15),transparent 30%,transparent 70%,rgba(0,0,0,.2)),linear-gradient(180deg,#ee5248,#b42a23);
+  box-shadow:0 6px 10px rgba(0,0,0,.25);transition:transform .9s cubic-bezier(.3,-.3,.3,1.3),opacity .9s}
+.lid::before{content:"";position:absolute;left:50%;top:0;bottom:0;width:16%;transform:translateX(-50%);background:linear-gradient(90deg,var(--gold-d),var(--gold-l) 45%,var(--gold) 60%,var(--gold-d))}
+.bow{position:absolute;left:50%;bottom:92%;width:0;height:0}
+.bow i{position:absolute;bottom:-4px;width:calc(var(--g)*.22);height:calc(var(--g)*.17);border:calc(var(--g)*.045) solid var(--gold);border-radius:50% 50% 50% 0;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.2)}
+.bow i:nth-child(1){right:-2px;transform:rotate(-15deg);border-color:var(--gold) var(--gold-l) var(--gold-d) var(--gold)}
+.bow i:nth-child(2){left:-2px;transform:scaleX(-1) rotate(-15deg);border-color:var(--gold) var(--gold-l) var(--gold-d) var(--gold)}
+.bow b{position:absolute;left:calc(var(--g)*-.05);bottom:-6px;width:calc(var(--g)*.1);height:calc(var(--g)*.1);border-radius:50%;background:radial-gradient(circle at 35% 35%,var(--gold-l),var(--gold-d))}
+.shadow{position:absolute;left:18%;right:18%;bottom:-2%;height:7%;border-radius:50%;background:radial-gradient(closest-side,rgba(0,0,0,.45),transparent);animation:shadow 3.2s ease-in-out infinite}
+@keyframes shadow{50%{transform:scaleX(.82);opacity:.7}}
+.gift.t1 .inner{animation:wob1 .5s ease}
+.gift.t2 .inner{animation:wob2 .6s ease}
+@keyframes wob1{25%{transform:rotate(-6deg)}50%{transform:rotate(5deg)}75%{transform:rotate(-3deg)}}
+@keyframes wob2{15%{transform:rotate(-10deg) scale(1.04)}35%{transform:rotate(9deg) scale(1.06)}55%{transform:rotate(-7deg)}75%{transform:rotate(4deg)}}
+.gift.open .lid{transform:translate(35%,-230%) rotate(38deg);opacity:0}
+.gift.open .inner{animation:squash .5s ease}
+@keyframes squash{30%{transform:scale(1.12,.88)}60%{transform:scale(.95,1.06)}}
+.gift.open .rays{opacity:1;width:calc(var(--g)*4.5);height:calc(var(--g)*4.5)}
+.taps{display:flex;justify-content:center;gap:8px;margin-bottom:10px}
+.taps i{width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.2);transition:background .3s,transform .3s}
+.taps i.on{background:var(--gold);transform:scale(1.2);box-shadow:0 0 12px var(--gold)}
+.hint{font-size:15px;color:var(--muted)}
+.flash{position:fixed;inset:0;z-index:5;pointer-events:none;background:radial-gradient(circle at 50% 50%,#fff8e6,rgba(255,236,190,.6) 40%,transparent 75%);opacity:0}
+.flash.go{animation:flash 1s ease-out}
+@keyframes flash{15%{opacity:1}100%{opacity:0}}
+
+/* ---------- Révélation ---------- */
+.reveal .rays-bg{position:fixed;left:50%;top:42%;width:170vmax;height:170vmax;transform:translate(-50%,-50%);z-index:-1;border-radius:50%;
+  background:repeating-conic-gradient(from 0deg,rgba(255,220,140,.08) 0deg 5deg,transparent 5deg 18deg);
+  -webkit-mask:radial-gradient(closest-side,#000,transparent 70%);mask:radial-gradient(closest-side,#000,transparent 70%);animation:spinr 60s linear infinite}
+.hello{font-size:17px;color:var(--muted);margin-top:18px}
+.hello b{color:var(--ink);font-weight:600}
+.target{font-family:Fraunces,Georgia,serif;font-weight:800;font-size:clamp(46px,14vw,86px);line-height:1.02;margin:10px 0 6px;word-break:break-word;
+  background:linear-gradient(100deg,#fff6dc 0%,var(--gold) 30%,#fff3c9 50%,var(--gold) 70%,#fff6dc 100%);background-size:250% 100%;
+  -webkit-background-clip:text;background-clip:text;color:transparent;animation:shimmer 5s linear infinite;
+  filter:drop-shadow(0 0 30px rgba(255,210,120,.45))}
+.underline{width:0;height:2px;margin:6px auto 0;background:linear-gradient(90deg,transparent,var(--gold),transparent);transition:width 1s ease .2s}
+.underline.on{width:70%}
+.chips{display:grid;gap:10px;margin-top:28px;text-align:left}
+.chip{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:16px;background:var(--glass);border:1px solid var(--glass-b);
+  -webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);opacity:0;transform:translateY(12px);transition:opacity .5s,transform .5s}
+.chip.on{opacity:1;transform:none}
+.chip .ico{font-size:22px;width:40px;height:40px;display:grid;place-items:center;border-radius:12px;background:rgba(255,255,255,.08);flex:none}
+.chip small{display:block;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.chip span{font-size:16px;font-weight:600}
+.secret{margin-top:24px;font-size:14px;color:var(--muted);opacity:0;transition:opacity .6s}
+.secret.on{opacity:1}
+.ghost{margin-top:14px;background:none;border:1px solid rgba(255,255,255,.2);border-radius:999px;padding:10px 20px;font-size:14px;color:var(--muted);cursor:pointer}
+
+@media (min-width:700px){ .app{padding-bottom:calc(min(26vh,230px))} }
+@media (max-height:640px){ .title{margin:8px 0}.glass{margin-top:16px} .gift{margin:22px auto 14px} }
+@media (prefers-reduced-motion:reduce){ *{animation-duration:.01ms!important;animation-iteration-count:1!important} }
+</style>
+</head>
+<body>
+<div class="scene" aria-hidden="true">
+  <div class="aurora"><i></i><i></i><i></i></div>
+  <div class="moon"></div>
+</div>
+<div class="hills" aria-hidden="true">
+  <svg viewBox="0 0 1440 300" preserveAspectRatio="xMidYMax slice">
+    <defs>
+      <symbol id="tree" viewBox="0 0 40 80"><path d="M20 0 L34 26 H27 L38 46 H29 L40 68 H23 V80 H17 V68 H0 L11 46 H2 L13 26 H6 Z"/></symbol>
+      <linearGradient id="snowg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e8f0fa"/><stop offset="1" stop-color="#9fb4d1"/></linearGradient>
+      <linearGradient id="snowg2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c6d5ea"/><stop offset="1" stop-color="#6f86a8"/></linearGradient>
+    </defs>
+    <!-- collines lointaines -->
+    <path d="M0 170 C160 120 300 150 430 130 C560 110 690 160 820 140 C960 118 1100 90 1250 120 C1340 138 1400 130 1440 125 V300 H0Z" fill="#1a2f52"/>
+    <g fill="#0f2140">
+      <use href="#tree" x="120" y="112" width="24" height="48"/><use href="#tree" x="150" y="120" width="18" height="36"/>
+      <use href="#tree" x="380" y="100" width="26" height="52"/><use href="#tree" x="410" y="110" width="20" height="40"/>
+      <use href="#tree" x="760" y="108" width="24" height="48"/><use href="#tree" x="1090" y="78" width="26" height="52"/>
+      <use href="#tree" x="1120" y="88" width="20" height="40"/><use href="#tree" x="1300" y="96" width="24" height="48"/>
+    </g>
+    <!-- colline milieu -->
+    <path d="M0 215 C200 175 360 205 520 190 C700 172 820 210 1000 195 C1180 180 1300 170 1440 185 V300 H0Z" fill="url(#snowg2)"/>
+    <g fill="#132a4a">
+      <use href="#tree" x="60" y="150" width="34" height="68"/><use href="#tree" x="96" y="168" width="24" height="48"/>
+      <use href="#tree" x="600" y="128" width="36" height="72"/><use href="#tree" x="640" y="148" width="26" height="52"/>
+      <use href="#tree" x="1230" y="122" width="36" height="72"/><use href="#tree" x="1268" y="140" width="26" height="52"/>
+    </g>
+    <!-- maisons -->
+    <g>
+      <path d="M300 200 h56 v-30 l-28 -22 l-28 22z" fill="#2a2440"/><path d="M296 172 l32 -26 l32 26" fill="none" stroke="#e8f0fa" stroke-width="5" stroke-linejoin="round"/>
+      <rect class="win" x="310" y="178" width="12" height="11" rx="1.5" fill="#ffc96b"/><rect class="win" x="334" y="178" width="12" height="11" rx="1.5" fill="#ffb84d"/>
+      <path d="M880 205 h70 v-36 l-35 -26 l-35 26z" fill="#2a2440"/><path d="M875 171 l40 -31 l40 31" fill="none" stroke="#e8f0fa" stroke-width="6" stroke-linejoin="round"/>
+      <rect class="win" x="893" y="180" width="14" height="13" rx="2" fill="#ffc96b"/><rect class="win" x="922" y="180" width="14" height="13" rx="2" fill="#ffd27f"/>
+      <rect x="935" y="140" width="9" height="18" fill="#2a2440"/>
+    </g>
+    <!-- premier plan -->
+    <path d="M0 255 C180 225 330 245 500 238 C700 230 860 258 1040 248 C1220 238 1340 232 1440 240 V300 H0Z" fill="url(#snowg)"/>
+    <g fill="#0d1d36">
+      <use href="#tree" x="-10" y="170" width="50" height="100"/><use href="#tree" x="30" y="200" width="34" height="68"/>
+      <use href="#tree" x="1360" y="160" width="54" height="108"/><use href="#tree" x="1330" y="196" width="36" height="72"/>
+    </g>
+  </svg>
+</div>
+<canvas id="fx" aria-hidden="true"></canvas>
+<div class="flash" id="flash"></div>
+
+<div class="app">
+  <!-- 1. Code -->
+  <section class="stage on" id="s-code">
+    <div class="eyebrow" id="eyebrow">Secret Santa</div>
+    <h1 class="title" id="title">Secret Santa</h1>
+    <p class="lead" id="lead">Entre ton code personnel pour découvrir à qui tu vas offrir un cadeau.</p>
+    <form class="glass" id="form" autocomplete="off" novalidate>
+      <label for="code">Ton code personnel</label>
+      <div class="otp" id="otp">
+        <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+        <div class="dash"></div>
+        <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+        <input id="code" name="code" type="text" inputmode="text" autocomplete="one-time-code" autocapitalize="characters" autocorrect="off" spellcheck="false" maxlength="9" aria-label="Code personnel à 8 caractères">
+      </div>
+      <button class="btn" id="go" type="submit">Découvrir mon tirage</button>
+      <div class="msg" id="msg" role="alert"></div>
+    </form>
+    <div class="countdown" id="cd" hidden></div>
+  </section>
+
+  <!-- 2. Cadeau -->
+  <section class="stage" id="s-gift">
+    <div class="eyebrow">Code accepté</div>
+    <h2 class="gift-title" id="gift-title">Ton cadeau t’attend…</h2>
+    <button class="gift" id="gift" type="button" aria-label="Toucher le cadeau pour l’ouvrir">
+      <span class="rays"></span><span class="halo"></span>
+      <span class="float"><span class="inner">
+        <span class="lid"><span class="bow"><i></i><i></i><b></b></span></span>
+        <span class="box"><span class="shine"></span></span>
+      </span></span>
+      <span class="shadow"></span>
+    </button>
+    <div class="taps" id="taps"><i></i><i></i><i></i></div>
+    <p class="hint" id="hint">Touche le cadeau 3 fois pour l’ouvrir</p>
+  </section>
+
+  <!-- 3. Révélation -->
+  <section class="stage reveal" id="s-reveal">
+    <div class="rays-bg"></div>
+    <div class="eyebrow" id="eyebrow2">Secret Santa</div>
+    <p class="hello" id="hello"></p>
+    <div class="target" id="target" aria-live="polite"></div>
+    <div class="underline" id="underline"></div>
+    <div class="chips" id="chips"></div>
+    <p class="secret" id="secret">🤫 Chut… garde le secret jusqu’au jour J !</p>
+    <button class="ghost" id="again" type="button">Fermer</button>
+  </section>
+
+  <!-- Pas encore de tirage -->
+  <section class="stage" id="s-empty">
+    <div class="eyebrow">Secret Santa</div>
+    <h1 class="title">Patience…</h1>
+    <p class="lead">Le tirage au sort n’a pas encore eu lieu.<br>Reviens quand tu auras reçu ton code !</p>
+  </section>
+</div>
+
+<script>
+const DATA = {"v":1,"event":{"title":"Secret Santa 2026","budget":"15€ / 20€","date":"2026-12-24","place":"À la maison, chaussons aux pieds et estomac prêt pour le marathon du réveillon 🧦","message":"Ho ho ho ! Ton destin de lutin est scellé dans ce code. Entre-le… et garde le secret jusqu'au pied du sapin 🎄"},"kdf":{"salt":"zr4be6cNds3I01ec++mr4g==","iter":150000},"entries":[{"iv":"3sjs3wNO2vl3Cwp8","ct":"euHJFUkdDWk7ChicjJLEbMHDhPnL6vFRWYeWk3L3fGL5w8Hd4ymnM2X3leg="},{"iv":"vfEC46bkw+pLHMzU","ct":"q1KU9rf6vjK3j/acxN3OpJVayZi7gpG4oT3HapuUKGQstLM7cMQ77NLvBFKf"},{"iv":"YFHtIaLGyH3T73f4","ct":"Hqg/ae2JeckFE2sf5uZi6/QDyzhJFHYEvJTOdDe6xADF2JKUk2X070IK4yMYT7kBdr0="},{"iv":"hlfRh0JTZi9FC9yh","ct":"LjpvHOj7MIwd8YtbHXpcaMMyGWfjgFzobL9RdT1lgJhWd/sBE6FRVQU="},{"iv":"WX3uIA09DRrKUVmb","ct":"rbB5kqKc8qA41hTFhf9BxFePCft82QQe6ts5FEml/Nwetlb1GOVJbQ=="},{"iv":"0OZBS4Cdt8YbeUrl","ct":"altP9v17X6St9tHR71bJUfDx9BTRMspsbo137cw4kTv59S6b+gugpwWRT+GORw=="},{"iv":"2/N/83heW0IyyKYY","ct":"idijzcaO6PGd7SgtlkTqAi61BQhliSVYO8ryhjopj4MAYsqUzWGqKBUykIY="},{"iv":"cccGQKv6DRjRyD3d","ct":"lQXseATIB7razYSoy0LwRCYWDBWrRgX/jf/WupdK1o7SDcKBQRGBklmexPd1"},{"iv":"2mwqIAVk67Se0kxG","ct":"mrMvOIZ82+Bl9pd0I1G8Rw3dXUtEGSJUn5PrSt7x4sUvfcTl2Yu71EQiLdvCEA=="},{"iv":"KD40ystmR/Gxw0eG","ct":"XQbjeGiCGfyR2nQs3EBBlEGJE+KPAZ2pAn6ZNUzoziCGekqqwh+hcFIt"},{"iv":"EvA5aVP4SAxcT+ib","ct":"/qGc69qbi8a3abe5Jf1dAOl5S8S976Dy7kCghQRw6CZU9IR8txwwnW7yFcA1Rg=="},{"iv":"hOEzSVRC5JqnyU1G","ct":"I49LTs08g/At1oCydfLwL49GilvA4aD91imADWp4/5wBv5kMaNUHYuDu8vQvn5ZuT37dmUY="},{"iv":"X3EGiAmEvx7qTg5T","ct":"cd4B2M5STmVj4iJ01ehSkguKGJPLHlpccSr65fjBjZTC0t6InwCB1LsriiFu5mTmKL/s"}]};
+
+const $ = id => document.getElementById(id);
+const b64d = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+const norm = s => (s || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const buzz = p => { try{ navigator.vibrate && navigator.vibrate(p); }catch(_){} };
+const wait = ms => new Promise(r => setTimeout(r, ms));
+
+async function unlock(code){
+  const enc = new TextEncoder();
+  const base = await crypto.subtle.importKey("raw", enc.encode(code), "PBKDF2", false, ["deriveKey"]);
+  const key = await crypto.subtle.deriveKey(
+    {name:"PBKDF2", salt:b64d(DATA.kdf.salt), iterations:DATA.kdf.iter, hash:"SHA-256"},
+    base, {name:"AES-GCM", length:256}, false, ["decrypt"]);
+  for(const e of DATA.entries){
+    try{
+      const pt = await crypto.subtle.decrypt({name:"AES-GCM", iv:b64d(e.iv)}, key, b64d(e.ct));
+      return JSON.parse(new TextDecoder().decode(pt));
+    }catch(_){ /* pas la bonne entrée */ }
+  }
+  return null;
+}
+
+function fillEvent(){
+  const ev = (DATA && DATA.event) || {};
+  const title = ev.title || "Secret Santa";
+  document.title = title;
+  $("title").textContent = title;
+  if(ev.message) $("lead").textContent = ev.message;
+  const year = ev.date ? ev.date.slice(0,4) : String(new Date().getFullYear());
+  $("eyebrow").textContent = $("eyebrow2").textContent = "Secret Santa " + year;
+  const d = daysLeft(ev.date);
+  if(d !== null && d >= 0){
+    const cd = $("cd"); cd.hidden = false;
+    cd.innerHTML = d === 0 ? "🎄 <b>C’est aujourd’hui !</b>" : "⏳ Échange des cadeaux dans <b>" + d + " jour" + (d > 1 ? "s" : "") + "</b>";
+  }
+}
+function daysLeft(iso){
+  if(!iso) return null;
+  const t = new Date(iso + "T00:00:00"); if(isNaN(t)) return null;
+  const n = new Date(); n.setHours(0,0,0,0);
+  return Math.round((t - n) / 864e5);
+}
+function formatDate(iso){
+  if(!iso) return "";
+  const d = new Date(iso + "T12:00:00");
+  if(isNaN(d)) return iso;
+  const s = d.toLocaleDateString("fr-FR", {weekday:"long", day:"numeric", month:"long"});
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/* ---------- Navigation entre étapes ---------- */
+async function go(id){
+  const cur = document.querySelector(".stage.on");
+  if(cur && !reduced){ cur.classList.add("leave"); await wait(420); }
+  document.querySelectorAll(".stage").forEach(s => s.classList.remove("on","enter","leave"));
+  const n = $(id); n.classList.add("on","enter");
+  scrollTo({top:0});
+}
+
+/* ---------- Saisie du code ---------- */
+const input = $("code"), cells = [...document.querySelectorAll(".otp .cell")];
+function paint(){
+  const v = norm(input.value).slice(0,8);
+  const focused = document.activeElement === input;
+  cells.forEach((c,i) => {
+    c.textContent = v[i] || "";
+    c.classList.toggle("filled", !!v[i]);
+    c.classList.toggle("active", focused && i === Math.min(v.length, 7));
+  });
+}
+input.addEventListener("input", () => {
+  const v = norm(input.value).slice(0,8);
+  input.value = v.length > 4 ? v.slice(0,4) + "-" + v.slice(4) : v;
+  $("otp").classList.remove("err"); $("msg").textContent = "";
+  paint();
+  if(v.length === 8) $("form").requestSubmit ? $("form").requestSubmit() : $("go").click();
+});
+["focus","blur","keyup","click"].forEach(e => input.addEventListener(e, paint));
+
+let result = null, busy = false;
+$("form").addEventListener("submit", async e => {
+  e.preventDefault();
+  if(busy) return;
+  const code = norm(input.value);
+  if(code.length < 8){ fail("Il manque " + (8 - code.length) + " caractère" + (8 - code.length > 1 ? "s" : "") + "."); return; }
+  busy = true; input.blur();
+  $("go").disabled = true; $("go").innerHTML = '<span class="spin"></span>Vérification…';
+  try{ result = await unlock(code); }catch(_){ result = null; }
+  $("go").disabled = false; $("go").textContent = "Découvrir mon tirage"; busy = false;
+  if(!result){ fail("Code inconnu. Vérifie-le et réessaie."); return; }
+  buzz(40);
+  $("gift-title").textContent = result.g ? result.g + ", ton cadeau t’attend…" : "Ton cadeau t’attend…";
+  await go("s-gift");
+});
+function fail(m){
+  $("msg").textContent = m; buzz([60,40,60]);
+  const o = $("otp"); o.classList.add("err"); o.classList.remove("shake"); void o.offsetWidth; o.classList.add("shake");
+}
+
+/* ---------- Cadeau ---------- */
+let taps = 0;
+$("gift").addEventListener("click", async () => {
+  if(taps >= 3) return;
+  taps++;
+  const g = $("gift"), dots = [...$("taps").children];
+  dots.forEach((d,i) => d.classList.toggle("on", i < taps));
+  const r = g.getBoundingClientRect(), cx = r.left + r.width/2, cy = r.top + r.height*.55;
+  if(taps < 3){
+    g.classList.remove("t1","t2"); void g.offsetWidth; g.classList.add("t" + taps);
+    buzz(25 * taps);
+    FX.burst(cx, cy - r.height*.15, 14 * taps, 3 + taps, ["#ffe4a3","#e3b04f","#ffffff"]);
+    $("hint").textContent = taps === 1 ? "Encore 2 fois…" : "Encore une fois !";
+    return;
+  }
+  // Ouverture !
+  $("hint").textContent = "";
+  g.classList.add("open"); buzz([80,40,160]);
+  const fl = $("flash"); fl.classList.remove("go"); void fl.offsetWidth; fl.classList.add("go");
+  FX.burst(cx, cy - r.height*.2, 140, 9, ["#ffe4a3","#e3b04f","#ffffff","#ff6b5e","#7dd3fc"]);
+  await wait(1100);
+  await reveal();
+});
+
+/* ---------- Révélation ---------- */
+async function reveal(){
+  const ev = (DATA && DATA.event) || {};
+  $("hello").innerHTML = "";
+  if(result.g){ const b = document.createElement("b"); b.textContent = result.g; $("hello").append(b, document.createTextNode(", tu offres un cadeau à…")); }
+  else $("hello").textContent = "Tu offres un cadeau à…";
+  $("target").textContent = "";
+  const chips = $("chips"); chips.innerHTML = "";
+  const add = (ico, label, val) => {
+    if(!val) return;
+    const c = document.createElement("div"); c.className = "chip";
+    const i = document.createElement("div"); i.className = "ico"; i.textContent = ico;
+    const t = document.createElement("div"); const s = document.createElement("small"); s.textContent = label;
+    const v = document.createElement("span"); v.textContent = val; t.append(s, v); c.append(i, t); chips.append(c);
+  };
+  add("💶", "Budget", ev.budget ? ev.budget + (/€|eur/i.test(ev.budget) ? "" : " €") : "");
+  const dl = daysLeft(ev.date);
+  add("📅", "Échange des cadeaux", ev.date ? formatDate(ev.date) + (dl > 0 ? " · J-" + dl : dl === 0 ? " · aujourd’hui !" : "") : "");
+  add("📍", "Lieu", ev.place);
+  await go("s-reveal");
+  await decode($("target"), result.r, reduced ? 0 : 1400);
+  buzz(60);
+  $("underline").classList.add("on");
+  FX.fireworks(6500);
+  FX.confetti();
+  [...chips.children].forEach((c,i) => setTimeout(() => c.classList.add("on"), 350 + i*180));
+  setTimeout(() => $("secret").classList.add("on"), 400 + chips.children.length*180);
+}
+
+function decode(el, text, dur){
+  const pool = "ABCDEFGHIJKLMNOPQRSTUVWXYZ✦★";
+  return new Promise(res => {
+    if(!dur){ el.textContent = text; res(); return; }
+    const t0 = performance.now();
+    (function f(now){
+      const p = Math.min(1, (now - t0) / dur), n = Math.floor(p * text.length);
+      let s = text.slice(0, n);
+      for(let i=n;i<text.length;i++) s += /\s/.test(text[i]) ? text[i] : pool[Math.floor(Math.random()*pool.length)];
+      el.textContent = s;
+      p < 1 ? requestAnimationFrame(f) : (el.textContent = text, res());
+    })(t0);
+  });
+}
+
+$("again").addEventListener("click", async () => {
+  result = null; taps = 0; input.value = ""; paint();
+  $("gift").classList.remove("open","t1","t2");
+  [...$("taps").children].forEach(d => d.classList.remove("on"));
+  $("hint").textContent = "Touche le cadeau 3 fois pour l’ouvrir";
+  $("underline").classList.remove("on"); $("secret").classList.remove("on");
+  FX.stop();
+  await go("s-code");
+});
+
+/* ---------- Effets : étoiles, neige, éclats, feux d’artifice ---------- */
+const FX = (() => {
+  const c = $("fx"), ctx = c.getContext("2d");
+  let W, H, dpr, stars = [], snow = [], parts = [], rockets = [], fwUntil = 0, nextRocket = 0;
+  const R = (a,b) => a + Math.random()*(b-a);
+  function resize(){
+    dpr = Math.min(window.devicePixelRatio || 1, 2); W = innerWidth; H = innerHeight;
+    c.width = W*dpr; c.height = H*dpr; ctx.setTransform(dpr,0,0,dpr,0,0);
+    stars = Array.from({length:Math.round(W*H/7000)}, () => ({x:R(0,W), y:R(0,H*.6), r:R(.3,1.4), p:R(0,6.28), s:R(.01,.04)}));
+    const n = Math.round(Math.min(170, W/5));
+    snow = Array.from({length:n}, () => { const z = R(.25,1); return {x:R(0,W), y:R(0,H), z, r:z*2.6, v:z*.9+.15, d:R(0,6.28)}; });
+  }
+  resize(); addEventListener("resize", resize);
+
+  function burst(x, y, n, power, colors){
+    for(let i=0;i<n;i++){
+      const a = R(0, Math.PI*2), s = R(.3,1)*power;
+      parts.push({x, y, vx:Math.cos(a)*s, vy:Math.sin(a)*s, life:1, decay:R(.008,.02), col:colors[i % colors.length], r:R(1.2,2.8), g:.05});
+    }
+  }
+  function rocket(){
+    const x = R(W*.12, W*.88);
+    rockets.push({x, y:H, vx:R(-.6,.6), vy:-R(H*.0125+6, H*.0125+9), ty:R(H*.12, H*.42), col:["#ffd166","#ff6b5e","#7dd3fc","#c4b5fd","#86efac","#ffffff"][Math.floor(R(0,6))]});
+  }
+  function fireworks(ms){ if(reduced) return; fwUntil = performance.now() + ms; nextRocket = 0; }
+  function stop(){ fwUntil = 0; rockets = []; parts = []; }
+
+  function confetti(){
+    if(reduced) return;
+    const cols = ["#d83a31","#e3b04f","#ffe4a3","#34d399","#7dd3fc","#ffffff"];
+    for(let i=0;i<120;i++) parts.push({x:R(0,W), y:R(-H*.3,-10), vx:R(-1,1), vy:R(1,3), life:1, decay:R(.003,.006), col:cols[i%cols.length], r:R(3,6), g:.02, conf:true, rot:R(0,6.28), vr:R(-.2,.2)});
+  }
+
+  function tick(now){
+    ctx.clearRect(0,0,W,H);
+    // étoiles
+    for(const s of stars){ s.p += s.s; ctx.globalAlpha = .35 + .65*Math.abs(Math.sin(s.p)); ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 6.28); ctx.fill(); }
+    // neige
+    if(!reduced) for(const f of snow){
+      f.y += f.v; f.d += .012; f.x += Math.sin(f.d)*.35*f.z;
+      if(f.y > H + 5){ f.y = -5; f.x = R(0,W); }
+      ctx.globalAlpha = .35 + .55*f.z; ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, 6.28); ctx.fill();
+    }
+    // fusées
+    if(now < fwUntil && now > nextRocket){ rocket(); if(Math.random() < .35) rocket(); nextRocket = now + R(260, 600); }
+    ctx.globalCompositeOperation = "lighter";
+    rockets = rockets.filter(k => {
+      k.x += k.vx; k.y += k.vy; k.vy *= .985;
+      ctx.globalAlpha = 1; ctx.fillStyle = k.col; ctx.beginPath(); ctx.arc(k.x, k.y, 2.2, 0, 6.28); ctx.fill();
+      ctx.globalAlpha = .35; ctx.beginPath(); ctx.arc(k.x - k.vx*2, k.y - k.vy*2, 1.6, 0, 6.28); ctx.fill();
+      if(k.y <= k.ty || k.vy > -1.5){ burst(k.x, k.y, Math.round(R(60,100)), R(3.5,6), [k.col, k.col, "#ffffff"]); return false; }
+      return true;
+    });
+    // particules
+    parts = parts.filter(p => {
+      p.vx *= .985; p.vy = p.vy*.985 + p.g; p.x += p.vx; p.y += p.vy; p.life -= p.decay;
+      if(p.life <= 0 || p.y > H + 20) return false;
+      ctx.globalAlpha = Math.min(1, p.life*1.4); ctx.fillStyle = p.col;
+      if(p.conf){
+        ctx.globalCompositeOperation = "source-over";
+        p.rot += p.vr; ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.fillRect(-p.r/2, -p.r, p.r, p.r*2*Math.abs(Math.cos(p.rot*2))+1); ctx.restore();
+        ctx.globalCompositeOperation = "lighter";
+      }else{ ctx.beginPath(); ctx.arc(p.x, p.y, p.r*p.life + .4, 0, 6.28); ctx.fill(); }
+      return true;
+    });
+    ctx.globalCompositeOperation = "source-over"; ctx.globalAlpha = 1;
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+  return {burst, fireworks, confetti, stop};
+})();
+
+/* ---------- Démarrage ---------- */
+if(!DATA || !DATA.entries || !DATA.entries.length){ go("s-empty"); }
+else { fillEvent(); paint(); }
+</script>
+</body>
+</html>
